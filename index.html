@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>YouTube 다운로드 — MP3 / MP4 (SSE 진행률)</title>
+  <style>
+    :root{
+      --bg:#0f1724;
+      --card:#0b1220;
+      --accent:#7dd3fc;
+      --accent2:#60a5fa;
+      --muted:#94a3b8;
+      --glass: rgba(255,255,255,0.03);
+      --radius:14px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:linear-gradient(180deg,#071228 0%, #071328 60%);
+      font-family:Inter,Segoe UI,Roboto,"Noto Sans KR",sans-serif;
+      color:#e6eef8;
+      padding:32px;
+    }
+    .wrap{
+      width:100%;
+      max-width:920px;
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius:var(--radius);
+      padding:24px;
+      box-shadow: 0 6px 30px rgba(2,6,23,0.7);
+      display:grid;
+      grid-template-columns: 1fr 360px;
+      gap:20px;
+      align-items:start;
+    }
+    .left{padding:8px}
+    h1{margin:0 0 8px 0;font-size:20px}
+    p.lead{margin:0 0 18px 0;color:var(--muted);font-size:13px}
+    .input-row{display:flex;gap:8px;margin-bottom:12px}
+    input[type=text]{
+      flex:1;
+      padding:12px 14px;
+      background:var(--glass);
+      border:1px solid rgba(255,255,255,0.03);
+      color:inherit;
+      border-radius:14px;
+      outline:none;
+      font-size:14px;
+    }
+
+    .format-toggle {
+      display:flex;
+      background:rgba(255,255,255,0.03);
+      border-radius:8px;
+      overflow:hidden;
+      width:fit-content;
+    }
+    .format-toggle input { display:none; }
+    .format-toggle label {
+      padding:10px 20px;
+      cursor:pointer;
+      font-weight:600;
+      color:var(--muted);
+      transition:all .25s ease;
+      border-radius:8px;
+      background:transparent;
+    }
+    .format-toggle input:checked + label {
+      background:linear-gradient(90deg,var(--accent),var(--accent2));
+      color:#01203a;
+    }
+
+    .preview{
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+      padding:14px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,0.02);
+      display:flex;
+      gap:12px;
+      align-items:center;
+    }
+    .thumb{
+      width:120px;height:68px;border-radius:8px;background:#021020;
+      flex:0 0 120px;display:flex;align-items:center;justify-content:center;overflow:hidden;
+    }
+    .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+    .meta{flex:1}
+    .meta h2{margin:0;font-size:16px}
+    .meta p{margin:6px 0 0 0;color:var(--muted);font-size:13px}
+
+    button.primary{
+      background:linear-gradient(90deg,var(--accent),var(--accent2));
+      color:#01203a;
+      border:none;
+      padding:12px 20px;
+      border-radius:14px;
+      cursor:pointer;
+      font-weight:600;
+      display:none;
+      transition: all .3s ease;
+    }
+    button.primary:hover{
+      filter:brightness(1.1);
+      transform:translateY(-1px);
+    }
+    button.primary:disabled{
+      opacity:0.6;
+      cursor:not-allowed;
+      transform:none;
+    }
+
+    .right{
+      padding:8px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      align-items:stretch;
+    }
+    .card{
+      background:rgba(255,255,255,0.02);
+      padding:12px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,0.02);
+      font-size:14px;
+    }
+    .progress{
+      height:10px;background:rgba(255,255,255,0.03);border-radius:8px;overflow:hidden;margin-top:8px;
+    }
+    .progress > i{
+      display:block;
+      height:100%;
+      width:0%;
+      background:linear-gradient(90deg,var(--accent),#60a5fa);
+      transition:width .2s ease;
+    }
+    .hint{color:var(--muted);font-size:13px}
+    footer{
+      margin-top:12px;
+      color:var(--muted);
+      font-size:14px;
+      text-align:center;
+      min-height:20px;
+    }
+    @media(max-width:880px){
+      .wrap{grid-template-columns:1fr; padding:18px}
+      .thumb{width:160px;height:90px}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="left">
+      <h1>YouTube 다운로드</h1>
+      <p class="lead">YouTube Downloader</p>
+
+      <div class="input-row">
+        <input id="url" type="text" placeholder="유튜브 URL을 붙여넣기 (자동으로 정보 불러옵니다)" />
+      </div>
+
+      <div class="format-toggle card">
+        <input type="radio" name="format" id="mp3" value="mp3" checked>
+        <label for="mp3">MP3</label>
+        <input type="radio" name="format" id="mp4" value="mp4">
+        <label for="mp4">MP4</label>
+      </div>
+
+      <div id="preview" class="preview card" style="display:none">
+        <div class="thumb" id="thumbBox"><span class="hint">썸네일</span></div>
+        <div class="meta">
+          <h2 id="title">제목 없음</h2>
+          <p id="channel" class="hint">채널 정보</p>
+          <p id="duration" class="hint"></p>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <button id="downloadBtn" class="primary" style="flex:1" disabled>다운로드 시작</button>
+        <button id="openInYT" class="card" style="min-width:110px;border-radius:14px;">YouTube 열기</button>
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="card">
+        <strong>진행 상태</strong>
+        <div id="status" style="margin-top:8px">대기 중</div>
+        <div class="progress"><i id="bar"></i></div>
+      </div>
+
+      <div class="card">
+        <strong>로그</strong>
+        <pre id="log" style="margin:8px 0 0 0;max-height:180px;overflow:auto;color:var(--muted);font-size:13px">—</pre>
+      </div>
+
+      <footer id="footerInfo" class="card" style="text-align:center;color:var(--muted);font-size:14px;">
+        정보가 여기에 표시됩니다.
+      </footer>
+    </div>
+  </div>
+
+<script>
+function extractVideoID(url){
+  try{
+    const u=new URL(url.trim());
+    if(u.hostname.includes("youtube.com")) return u.searchParams.get("v");
+    if(u.hostname.includes("youtu.be")) return u.pathname.slice(1);
+  }catch(e){
+    const m=url.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/);
+    if(m) return m[1];
+  }
+  return null;
+}
+
+const urlInput=document.getElementById('url');
+const preview=document.getElementById('preview');
+const thumbBox=document.getElementById('thumbBox');
+const titleEl=document.getElementById('title');
+const channelEl=document.getElementById('channel');
+const durationEl=document.getElementById('duration');
+const statusEl=document.getElementById('status');
+const logEl=document.getElementById('log');
+const barEl=document.getElementById('bar');
+const downloadBtn=document.getElementById('downloadBtn');
+const openInYT=document.getElementById('openInYT');
+const footerInfo=document.getElementById('footerInfo');
+
+function setStatus(s){statusEl.textContent=s;}
+function appendLog(s){logEl.textContent=s+"\n"+logEl.textContent;}
+
+// reset UI helper
+function resetUI(){
+  barEl.style.width = '0%';
+  setStatus('대기 중');
+  logEl.textContent = '—';
+  downloadBtn.disabled = true;
+  preview.style.display = 'none';
+  downloadBtn.style.display = 'none';
+}
+
+urlInput.addEventListener('input', async ()=>{
+  // on new URL -> reset UI immediately
+  resetUI();
+  const url=urlInput.value.trim();
+  const vid=extractVideoID(url);
+  if(!vid) return;
+  setStatus('정보 불러오는 중...');
+  try{
+    const th=`https://img.youtube.com/vi/${vid}/maxresdefault.jpg`;
+    const ok=await checkImage(th);
+    const thumbUrl=ok?th:`https://img.youtube.com/vi/${vid}/hqdefault.jpg`;
+    thumbBox.innerHTML=`<img src="${thumbUrl}" alt="thumb">`;
+    const resp=await fetch('/info',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
+    if(resp.ok){
+      const j=await resp.json();
+      titleEl.textContent=j.title||'제목 없음';
+      channelEl.textContent=j.uploader||'';
+      durationEl.textContent=j.duration?`길이: ${j.duration}`:'';
+      footerInfo.innerHTML=`<strong>${j.title}</strong><br>${j.uploader||''} — ${j.duration||''}`;
+    }
+    preview.style.display='flex';
+    downloadBtn.style.display='inline-flex';
+    downloadBtn.disabled=false;
+    setStatus('준비 완료');
+  }catch(e){
+    setStatus('정보 불러오기 실패');
+    appendLog('정보 오류: '+(e.message || e));
+  }
+});
+
+async function checkImage(src){
+  try{const res=await fetch(src,{method:'HEAD'});return res.ok&&res.headers.get('content-length')!=='0';}
+  catch(e){return false;}
+}
+
+// active progressEventSource variable so we can close it on new downloads
+let progressEs = null;
+
+downloadBtn.addEventListener('click', async ()=>{
+  const url = urlInput.value.trim();
+  const format = document.querySelector('input[name="format"]:checked').value;
+
+  // if there's an existing SSE, close it before starting new job
+  if(progressEs){
+    try{ progressEs.close(); }catch(e){}
+    progressEs = null;
+  }
+
+  setStatus('다운로드 요청 중...');
+  appendLog(`요청: ${format.toUpperCase()}`);
+
+  const resp = await fetch('/download', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url, format, thumb: false })
+  });
+
+  if (!resp.ok) {
+    setStatus('[Error] 서버 요청 실패');
+    appendLog('서버 요청 실패');
+    return;
+  }
+
+  const data = await resp.json();
+  const jobId = data.id;
+  if(!jobId){
+    setStatus('[Error] job id 없음');
+    return;
+  }
+
+  setStatus('작업 대기 중...');
+  barEl.style.width = '0%';
+
+  // open SSE for progress
+  progressEs = new EventSource('/progress/' + jobId);
+  progressEs.onmessage = (ev) => {
+    try{
+      const obj = JSON.parse(ev.data);
+      // update UI
+      if(obj.stage) setStatus(`${obj.stage} — ${obj.percent || 0}%`);
+      else setStatus(obj.status || '진행 중');
+
+      barEl.style.width = (obj.percent || 0) + '%';
+
+      if(obj.log && obj.log.length){
+        // show top logs
+        logEl.textContent = obj.log.join("\n") + "\n" + logEl.textContent;
+      }
+
+      // when finished -> download file
+      if(obj.status === 'finished'){
+        // close SSE
+        try{ progressEs.close(); }catch(e){}
+        progressEs = null;
+        setStatus('처리 완료 — 파일 다운로드 중...');
+        // fetch file URL endpoint and trigger save
+        fetchFileAndSave(jobId, obj.filename || (`download.${format === 'mp3' ? 'mp3' : 'mp4'}`));
+      } else if(obj.status === 'error'){
+        try{ progressEs.close(); }catch(e){}
+        progressEs = null;
+        setStatus('오류 발생');
+        appendLog('오류: ' + (obj.error || 'unknown'));
+      }
+    }catch(e){
+      console.error('SSE parse err', e);
+    }
+  };
+
+  progressEs.onerror = (e) => {
+    // do not spam errors; show brief message
+    appendLog('진행 연결 오류');
+  };
+});
+
+async function fetchFileAndSave(jobId, filename){
+  try{
+    const resp = await fetch('/file/' + jobId);
+    if(!resp.ok){
+      appendLog('파일 다운로드 실패');
+      setStatus('파일 다운로드 실패');
+      return;
+    }
+    const blob = await resp.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setStatus('다운로드 완료');
+    barEl.style.width = '100%';
+  }catch(e){
+    appendLog('파일 저장 실패: ' + e.message);
+    setStatus('파일 저장 실패');
+  }
+}
+
+openInYT.addEventListener('click',()=>{
+  const url=urlInput.value.trim();
+  if(url) window.open(url,'_blank');
+});
+</script>
+</body>
+</html>
